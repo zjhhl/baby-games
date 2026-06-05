@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>记忆翻牌 🧠</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #faf5ff 0%, #fdf2f8 30%, #fef9c3 60%, #ecfdf5 100%);
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+
+  .game-container {
+    width: 100%;
+    max-width: 500px;
+    height: 100dvh;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---- 头部 ---- */
+  .header {
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .header .title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b, #22c55e);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .info {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-top: 1px;
+  }
+  .header .info span { font-weight: 700; color: #8b5cf6; }
+
+  /* ---- 卡片网格 ---- */
+  .cards-grid {
+    display: grid;
+    gap: 8px;
+    flex-shrink: 0;
+    perspective: 600px;
+  }
+  .card-wrapper {
+    aspect-ratio: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.4s;
+    transform-style: preserve-3d;
+  }
+  .card-wrapper.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+  .card-front, .card-back {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #e2e8f0;
+  }
+  .card-back {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    font-size: 2rem;
+    color: white;
+    transform: rotateY(0deg);
+  }
+  .card-front {
+    background: white;
+    transform: rotateY(180deg);
+    font-size: 2.5rem;
+  }
+  .card-wrapper.matched .card-inner {
+    transform: rotateY(180deg);
+  }
+  .card-wrapper.matched .card-front {
+    border-color: #22c55e;
+    background: #f0fdf4;
+    box-shadow: 0 0 0 5px rgba(34,197,94,0.2);
+  }
+  .card-wrapper.wrong-flip .card-front {
+    border-color: #ef4444;
+    background: #fef2f2;
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%, 100% { transform: rotateY(180deg) translateX(0); }
+    20% { transform: rotateY(180deg) translateX(-4px); }
+    40% { transform: rotateY(180deg) translateX(4px); }
+    60% { transform: rotateY(180deg) translateX(-3px); }
+    80% { transform: rotateY(180deg) translateX(3px); }
+  }
+
+  /* ---- 信息 ---- */
+  .status-row {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #64748b;
+    flex-shrink: 0;
+  }
+  .status-row span { font-weight: 700; color: #8b5cf6; }
+
+  .feedback {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    min-height: 30px;
+    flex-shrink: 0;
+  }
+  .feedback.correct { color: #16a34a; }
+  .feedback.wrong { color: #dc2626; }
+
+  .next-btn {
+    padding: 11px 34px;
+    border-radius: 50px;
+    border: none;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 3px 12px rgba(139,92,246,0.3);
+    transition: transform 0.1s;
+  }
+  .next-btn:active { transform: scale(0.94); }
+
+  /* ---- 完成 ---- */
+  .complete-screen {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex: 1;
+  }
+  .complete-screen .trophy {
+    font-size: 4rem;
+    animation: bounce 1s ease infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .complete-screen .msg { font-size: 1.35rem; font-weight: 700; color: #1e293b; }
+  .complete-screen .final-score { font-size: 1rem; color: #64748b; }
+  .btn-replay {
+    padding: 12px 34px;
+    border-radius: 50px;
+    border: none;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+  }
+  .btn-replay:active { transform: scale(0.94); }
+
+  .hidden { display: none !important; }
+
+  .confetti-container {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+  .confetti-piece {
+    position: absolute;
+    border-radius: 3px;
+    animation: confetti-fall 1.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-60px) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg) scale(0.3); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-container" id="gameContainer">
+  <div class="header" id="headerArea">
+    <div class="title">🧠 记忆翻牌</div>
+    <div class="info">第 <span id="levelNum">1</span>/<span id="levelTotal">5</span> 关 &nbsp; ⭐ <span id="scoreDisplay">0</span></div>
+  </div>
+
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <div class="status-row">
+    翻牌：<span id="movesCount">0</span> 次 &nbsp; 配对：<span id="pairsFound">0</span>/<span id="pairsTotal">3</span>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <button class="next-btn hidden" id="nextBtn">👉 下一关</button>
+
+  <div class="complete-screen hidden" id="completeScreen">
+    <div class="trophy">🏆</div>
+    <div class="msg">记忆力真好！</div>
+    <div class="final-score" id="finalScore"></div>
+    <button class="btn-replay" id="btnReplay">🔄 再玩一次</button>
+  </div>
+</div>
+
+<div class="confetti-container" id="confettiContainer"></div>
+
+<script>
+// ========== 关卡配置 ==========
+const EMOJI_POOL = ['🐶','🐱','🐰','🐻','🐼','🐨','🦊','🐸','🐵','🐙',
+                    '🌸','⭐','🌙','🍎','🎈','🚗','🌈','🍭','🎵','❤️'];
+
+const LEVELS = [
+  { pairs: 3, cols: 3, rows: 2 },   // 3对，6张
+  { pairs: 4, cols: 4, rows: 2 },   // 4对，8张
+  { pairs: 6, cols: 4, rows: 3 },   // 6对，12张
+  { pairs: 8, cols: 4, rows: 4 },   // 8对，16张
+  { pairs: 10, cols: 5, rows: 4 },  // 10对，20张
+];
+
+// ========== 游戏状态 ==========
+let currentLevel = 0;
+let score = 0;
+let moves = 0;
+let pairsFound = 0;
+let firstCard = null;    // { wrapper, emoji }
+let secondCard = null;
+let lockBoard = false;
+let totalCards = [];
+
+// DOM
+const cardsGrid = document.getElementById('cardsGrid');
+const feedback = document.getElementById('feedback');
+const nextBtn = document.getElementById('nextBtn');
+const levelNum = document.getElementById('levelNum');
+const levelTotal = document.getElementById('levelTotal');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const movesCount = document.getElementById('movesCount');
+const pairsFoundEl = document.getElementById('pairsFound');
+const pairsTotalEl = document.getElementById('pairsTotal');
+const headerArea = document.getElementById('headerArea');
+const completeScreen = document.getElementById('completeScreen');
+const confettiContainer = document.getElementById('confettiContainer');
+
+// ========== 音频 ==========
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+document.addEventListener('touchstart', () => getAudioCtx(), { once: true });
+document.addEventListener('click', () => getAudioCtx(), { once: true });
+
+function playSound(freq, duration, type) {
+  try {
+    const ac = getAudioCtx();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.2, ac.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ac.currentTime + duration);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + duration);
+  } catch(e) {}
+}
+
+function playWinSound() {
+  try {
+    const ac = getAudioCtx();
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = ac.createOscillator(); const g = ac.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = ac.currentTime + i * 0.1;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.25, t + 0.03);
+      g.gain.linearRampToValueAtTime(0, t + 0.35);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + 0.4);
+    });
+  } catch(e) {}
+}
+
+function spawnConfetti() {
+  const colors = ['#8b5cf6','#ec4899','#f59e0b','#22c55e','#3b82f6','#14b8a6'];
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 50; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.top = -(Math.random() * 40) + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    p.style.animationDuration = (1 + Math.random() * 2) + 's';
+    p.style.width = (7 + Math.random() * 10) + 'px';
+    p.style.height = (7 + Math.random() * 10) + 'px';
+    frag.appendChild(p);
+  }
+  confettiContainer.appendChild(frag);
+  setTimeout(() => { confettiContainer.innerHTML = ''; }, 2500);
+}
+
+// ========== 洗牌 ==========
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ========== 渲染关卡 ==========
+function renderLevel() {
+  const lv = LEVELS[currentLevel];
+  const { pairs, cols, rows } = lv;
+  const total = pairs * 2;
+
+  moves = 0;
+  pairsFound = 0;
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  nextBtn.classList.add('hidden');
+  levelNum.textContent = currentLevel + 1;
+  levelTotal.textContent = LEVELS.length;
+  scoreDisplay.textContent = score;
+  movesCount.textContent = '0';
+  pairsFoundEl.textContent = '0';
+  pairsTotalEl.textContent = pairs;
+
+  // 选取 emoji
+  const selectedEmojis = shuffle(EMOJI_POOL).slice(0, pairs);
+  // 每对两个，打乱
+  totalCards = shuffle([...selectedEmojis, ...selectedEmojis]);
+
+  // 计算格子大小
+  const gap = cols >= 5 ? 6 : 8;
+  cardsGrid.style.gap = gap + 'px';
+  const maxW = Math.min(window.innerWidth - 36, 470);
+  const maxH = window.innerHeight * 0.5;
+  const cellFromW = Math.floor((maxW - (cols - 1) * gap) / cols);
+  const cellFromH = Math.floor((maxH - (rows - 1) * gap) / rows);
+  const cellSize = Math.min(cellFromW, cellFromH, 100);
+
+  cardsGrid.style.width = (cellSize * cols + (cols - 1) * gap) + 'px';
+  cardsGrid.style.height = (cellSize * rows + (rows - 1) * gap) + 'px';
+  cardsGrid.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+  cardsGrid.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+
+  const backFontSize = cellSize > 80 ? '2.4rem' : cellSize > 60 ? '1.8rem' : '1.4rem';
+  const frontFontSize = cellSize > 80 ? '3rem' : cellSize > 60 ? '2.4rem' : '1.8rem';
+
+  cardsGrid.innerHTML = '';
+  totalCards.forEach((emoji, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-wrapper';
+    wrapper.style.width = cellSize + 'px';
+    wrapper.style.height = cellSize + 'px';
+    wrapper.dataset.index = i;
+    wrapper.dataset.emoji = emoji;
+
+    wrapper.innerHTML = `
+      <div class="card-inner">
+        <div class="card-back" style="font-size:${backFontSize}">❓</div>
+        <div class="card-front" style="font-size:${frontFontSize}">${emoji}</div>
+      </div>
+    `;
+
+    wrapper.addEventListener('click', () => onCardClick(wrapper));
+    cardsGrid.appendChild(wrapper);
+  });
+}
+
+// ========== 点击卡片 ==========
+function onCardClick(wrapper) {
+  if (lockBoard) return;
+  if (wrapper.classList.contains('flipped')) return;
+  if (wrapper.classList.contains('matched')) return;
+  // 不能点正在比较的那张
+  if (firstCard && firstCard.wrapper === wrapper) return;
+
+  // 翻转
+  wrapper.classList.add('flipped');
+  playSound(600, 0.15, 'sine');
+
+  if (!firstCard) {
+    // 第一张
+    firstCard = { wrapper, emoji: wrapper.dataset.emoji };
+    return;
+  }
+
+  // 第二张
+  secondCard = { wrapper, emoji: wrapper.dataset.emoji };
+  moves++;
+  movesCount.textContent = moves;
+  lockBoard = true;
+
+  if (firstCard.emoji === secondCard.emoji) {
+    // 配对成功！
+    playSound(880, 0.3, 'triangle');
+    setTimeout(() => {
+      firstCard.wrapper.classList.add('matched');
+      secondCard.wrapper.classList.add('matched');
+      pairsFound++;
+      pairsFoundEl.textContent = pairsFound;
+      score += 10;
+      scoreDisplay.textContent = score;
+
+      resetSelection();
+
+      if (pairsFound === LEVELS[currentLevel].pairs) {
+        // 过关
+        feedback.textContent = '🎉 全配对啦！记忆达人！';
+        feedback.className = 'feedback correct';
+        playWinSound();
+        spawnConfetti();
+        scheduleNext(1500);
+      }
+    }, 300);
+  } else {
+    // 不匹配
+    playSound(250, 0.3, 'square');
+    setTimeout(() => {
+      firstCard.wrapper.classList.add('wrong-flip');
+      secondCard.wrapper.classList.add('wrong-flip');
+      feedback.textContent = '😊 不一样哦，记住位置再试试～';
+      feedback.className = 'feedback wrong';
+    }, 200);
+
+    setTimeout(() => {
+      firstCard.wrapper.classList.remove('flipped', 'wrong-flip');
+      secondCard.wrapper.classList.remove('flipped', 'wrong-flip');
+      resetSelection();
+    }, 900);
+  }
+}
+
+function resetSelection() {
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+}
+
+// ========== 自动下一关 ==========
+let nextTimer = null;
+function scheduleNext(delay) {
+  if (currentLevel < LEVELS.length - 1) {
+    nextBtn.textContent = '👉 下一关';
+  } else {
+    nextBtn.textContent = '🏆 看结果';
+  }
+  nextBtn.classList.remove('hidden');
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(() => goToNext(), delay);
+}
+
+function goToNext() {
+  clearTimeout(nextTimer);
+  currentLevel++;
+  if (currentLevel < LEVELS.length) {
+    renderLevel();
+  } else {
+    showComplete();
+  }
+}
+
+nextBtn.addEventListener('click', () => goToNext());
+
+// ========== 完成 ==========
+function showComplete() {
+  cardsGrid.classList.add('hidden');
+  document.querySelector('.status-row').classList.add('hidden');
+  feedback.classList.add('hidden');
+  nextBtn.classList.add('hidden');
+  headerArea.classList.add('hidden');
+  completeScreen.classList.remove('hidden');
+  document.getElementById('finalScore').textContent =
+    `一共获得 ${score} 分！记性真好！`;
+  playWinSound();
+  spawnConfetti();
+}
+
+document.getElementById('btnReplay').addEventListener('click', () => {
+  currentLevel = 0;
+  score = 0;
+  scoreDisplay.textContent = '0';
+  cardsGrid.classList.remove('hidden');
+  document.querySelector('.status-row').classList.remove('hidden');
+  feedback.classList.remove('hidden');
+  headerArea.classList.remove('hidden');
+  completeScreen.classList.add('hidden');
+  renderLevel();
+});
+
+// ========== 启动 ==========
+renderLevel();
+</script>
+
+</body>
+</html>

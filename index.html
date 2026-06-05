@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>🌼 宝宝学诗词</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(160deg, #fdf2f8 0%, #fef9c3 25%, #ecfdf5 55%, #f0f9ff 80%, #faf5ff 100%);
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ---- 头部 ---- */
+  .hero {
+    text-align: center;
+  }
+  .hero .icon {
+    font-size: 2.2rem;
+    animation: bounce 2s ease-in-out infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  .hero h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #e11d48, #f59e0b, #22c55e, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-top: 4px;
+  }
+  .hero .sub {
+    font-size: 0.95rem;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  /* ---- 游戏卡片 ---- */
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  .game-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border-radius: 20px;
+    padding: 12px 14px;
+    text-decoration: none;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.05);
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .game-card:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .game-card .card-icon {
+    font-size: 2.2rem;
+    flex-shrink: 0;
+    width: 50px;
+    text-align: center;
+  }
+  .game-card .card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .game-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  .game-card .card-desc {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .game-card .card-arrow {
+    font-size: 1.3rem;
+    color: #cbd5e1;
+    flex-shrink: 0;
+  }
+
+  /* ---- 卡片配色 ---- */
+  .card-poetry { border-left: 4px solid #f59e0b; }
+  .card-poetry .card-icon { color: #f59e0b; }
+  .card-word { border-left: 4px solid #8b5cf6; }
+  .card-word .card-icon { color: #8b5cf6; }
+  .card-maze { border-left: 4px solid #22c55e; }
+  .card-maze .card-icon { color: #22c55e; }
+  .card-spot { border-left: 4px solid #ec4899; }
+  .card-spot .card-icon { color: #ec4899; }
+  .card-memory { border-left: 4px solid #8b5cf6; }
+  .card-memory .card-icon { color: #8b5cf6; }
+  .card-stroke { border-left: 4px solid #3b82f6; }
+  .card-stroke .card-icon { color: #3b82f6; }
+  .card-focus { border-left: 4px solid #f59e0b; }
+  .card-focus .card-icon { color: #f59e0b; }
+  .card-english { border-left: 4px solid #3b82f6; }
+  .card-english .card-icon { color: #3b82f6; }
+  /* ---- 底部 ---- */
+  .footer {
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="hero">
+    <div class="icon">🌼</div>
+    <h1>宝宝启蒙乐园</h1>
+    <div class="sub">3~6 岁趣味小游戏</div>
+  </div>
+
+  <div class="cards">
+    <a class="game-card card-poetry" href="poetry-game.html">
+      <div class="card-icon">📝</div>
+      <div class="card-body">
+        <div class="card-title">古诗填填乐</div>
+        <div class="card-desc">听古诗，把缺失的汉字填回去</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-word" href="pic-to-word.html">
+      <div class="card-icon">🔤</div>
+      <div class="card-body">
+        <div class="card-title">看图识字</div>
+        <div class="card-desc">看图片，找出对应的汉字</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-maze" href="maze.html">
+      <div class="card-icon">🐰</div>
+      <div class="card-body">
+        <div class="card-title">小兔走迷宫</div>
+        <div class="card-desc">帮小兔穿过迷宫吃到胡萝卜</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-spot" href="spot-diff.html">
+      <div class="card-icon">😊</div>
+      <div class="card-body">
+        <div class="card-title">表情找不同</div>
+        <div class="card-desc">找出表情中不一样的那一个</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-memory" href="memory.html">
+      <div class="card-icon">🧠</div>
+      <div class="card-body">
+        <div class="card-title">记忆翻牌</div>
+        <div class="card-desc">翻开卡片找到相同的配对</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-stroke" href="onestroke.html">
+      <div class="card-icon">✏️</div>
+      <div class="card-body">
+        <div class="card-title">一笔画</div>
+        <div class="card-desc">一笔连完所有线条不重复</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-focus" href="focus.html">
+      <div class="card-icon">🎯</div>
+      <div class="card-body">
+        <div class="card-title">专注力训练</div>
+        <div class="card-desc">按顺序点数字，找出隐藏表情</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+    <a class="game-card card-english" href="english.html">
+      <div class="card-icon">🌈</div>
+      <div class="card-body">
+        <div class="card-title">宝宝学ABC</div>
+        <div class="card-desc">26个字母 + 常用单词 + 小测验</div>
+      </div>
+      <div class="card-arrow">▸</div>
+    </a>
+
+  </div>
+
+  <div class="footer">🌸 和宝宝一起学习成长～</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>一笔画 ✏️</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 50%, #fef9c3 100%);
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+
+  .game-container {
+    width: 100%;
+    max-width: 500px;
+    height: 100dvh;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header {
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .header .title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .info {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-top: 1px;
+  }
+  .header .info span { font-weight: 700; color: #8b5cf6; }
+
+  .canvas-wrapper {
+    background: white;
+    border-radius: 18px;
+    padding: 8px;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.05);
+    flex-shrink: 0;
+  }
+  canvas {
+    display: block;
+    border-radius: 10px;
+    touch-action: none;
+  }
+
+  .hint-text {
+    font-size: 0.95rem;
+    color: #64748b;
+    text-align: center;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .feedback {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    min-height: 28px;
+    flex-shrink: 0;
+  }
+  .feedback.correct { color: #16a34a; }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .btn {
+    padding: 10px 22px;
+    border-radius: 50px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.94); }
+  .btn-undo {
+    background: #e2e8f0;
+    color: #475569;
+  }
+  .btn-reset {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .btn-next {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    box-shadow: 0 3px 12px rgba(59,130,246,0.3);
+  }
+  .btn-next:active { transform: scale(0.94); }
+
+  .complete-screen {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex: 1;
+  }
+  .complete-screen .trophy {
+    font-size: 4rem;
+    animation: bounce 1s ease infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .complete-screen .msg { font-size: 1.35rem; font-weight: 700; color: #1e293b; }
+  .complete-screen .final-score { font-size: 1rem; color: #64748b; }
+  .btn-replay {
+    padding: 12px 34px;
+    border-radius: 50px;
+    border: none;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+  }
+  .btn-replay:active { transform: scale(0.94); }
+
+  .hidden { display: none !important; }
+
+  .confetti-container {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+  .confetti-piece {
+    position: absolute; border-radius: 3px;
+    animation: confetti-fall 1.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-60px) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg) scale(0.3); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-container" id="gameContainer">
+  <div class="header" id="headerArea">
+    <div class="title">✏️ 一笔画</div>
+    <div class="info">第 <span id="levelNum">1</span>/<span id="levelTotal">6</span> 关 &nbsp; ⭐ <span id="scoreDisplay">0</span></div>
+  </div>
+
+  <div class="canvas-wrapper">
+    <canvas id="canvasEl"></canvas>
+  </div>
+
+  <div class="hint-text" id="hintText">从一个点出发，一笔连完所有线～</div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="action-row" id="actionRow">
+    <button class="btn btn-undo" id="btnUndo">↩ 撤销</button>
+    <button class="btn btn-reset" id="btnReset">🔄 重来</button>
+  </div>
+
+  <button class="btn btn-next hidden" id="btnNext">👉 下一关</button>
+
+  <div class="complete-screen hidden" id="completeScreen">
+    <div class="trophy">🏆</div>
+    <div class="msg">全部通关！</div>
+    <div class="final-score" id="finalScore"></div>
+    <button class="btn-replay" id="btnReplay">🔄 再玩一次</button>
+  </div>
+</div>
+
+<div class="confetti-container" id="confettiContainer"></div>
+
+<script>
+// ========== 关卡数据 ==========
+// nodes: [[x, y], ...], edges: [[fromIdx, toIdx], ...]  (from < to)
+const PUZZLES = [
+  {
+    name: '小三角', nodes: [[0.5,0.15],[0.15,0.85],[0.85,0.85]],
+    edges: [[0,1],[1,2],[2,0]],
+  },
+  {
+    name: '正方形', nodes: [[0.2,0.2],[0.8,0.2],[0.8,0.8],[0.2,0.8]],
+    edges: [[0,1],[1,2],[2,3],[3,0]],
+  },
+  {
+    name: '小房子', nodes: [[0.3,0.15],[0.7,0.15],[0.7,0.7],[0.3,0.7],[0.5,0.05]],
+    edges: [[0,1],[1,2],[2,3],[3,0],[0,4],[1,4]],
+  },
+  {
+    name: '信封', nodes: [[0.2,0.2],[0.8,0.2],[0.5,0.55],[0.2,0.8],[0.8,0.8]],
+    edges: [[0,1],[1,2],[2,0],[0,3],[3,2],[2,4],[4,1]],
+  },
+  {
+    name: '五角星', nodes: [[0.5,0.05],[0.62,0.38],[0.98,0.38],[0.69,0.59],[0.8,0.95],[0.5,0.73],[0.2,0.95],[0.31,0.59],[0.02,0.38],[0.38,0.38]],
+    edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,0]],
+  },
+  {
+    name: '小鱼', nodes: [[0.15,0.3],[0.5,0.08],[0.85,0.3],[0.7,0.72],[0.3,0.72]],
+    edges: [[0,1],[1,2],[2,3],[3,4],[4,0],[0,3]],
+  },
+];
+
+// ========== 游戏状态 ==========
+let currentLevel = 0;
+let score = 0;
+let nodes = [], edges = [];         // 当前关卡的节点和边（像素坐标）
+let tracedEdges = [];               // 已画的边索引
+let currentNode = -1;               // 当前所在节点（-1 表示未开始）
+let pathHistory = [];               // 走过的节点顺序
+let canvas, ctx;
+let nodeRadius = 18;
+
+// DOM
+const canvasEl = document.getElementById('canvasEl');
+const feedback = document.getElementById('feedback');
+const hintText = document.getElementById('hintText');
+const btnNext = document.getElementById('btnNext');
+const levelNum = document.getElementById('levelNum');
+const levelTotal = document.getElementById('levelTotal');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const headerArea = document.getElementById('headerArea');
+const actionRow = document.getElementById('actionRow');
+const completeScreen = document.getElementById('completeScreen');
+const confettiContainer = document.getElementById('confettiContainer');
+
+// ========== 音频 ==========
+let audioCtx = null;
+function ac() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+document.addEventListener('touchstart', () => ac(), { once: true });
+document.addEventListener('click', () => ac(), { once: true });
+
+function playWinSound() {
+  try {
+    const a = ac();
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = a.createOscillator(); const g = a.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = a.currentTime + i * 0.1;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.25, t + 0.03);
+      g.gain.linearRampToValueAtTime(0, t + 0.35);
+      o.connect(g); g.connect(a.destination);
+      o.start(t); o.stop(t + 0.4);
+    });
+  } catch(e) {}
+}
+
+function playClickSound() {
+  try {
+    const a = ac(); const o = a.createOscillator(); const g = a.createGain();
+    o.type = 'sine'; o.frequency.value = 440;
+    g.gain.setValueAtTime(0.15, a.currentTime);
+    g.gain.linearRampToValueAtTime(0, a.currentTime + 0.08);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime + 0.1);
+  } catch(e) {}
+}
+
+function spawnConfetti() {
+  const colors = ['#3b82f6','#8b5cf6','#ec4899','#22c55e','#f59e0b','#14b8a6'];
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 50; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.top = -(Math.random() * 40) + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    p.style.animationDuration = (1 + Math.random() * 2) + 's';
+    p.style.width = (7 + Math.random() * 10) + 'px';
+    p.style.height = (7 + Math.random() * 10) + 'px';
+    frag.appendChild(p);
+  }
+  confettiContainer.appendChild(frag);
+  setTimeout(() => { confettiContainer.innerHTML = ''; }, 2500);
+}
+
+// 节点表情池
+const NODE_FACES = ['🐱','🐶','🐰','🐻','🐼','🐨','🦊','🐸','🐵'];
+let nodeFaces = [];
+
+// ========== 初始化关卡 ==========
+function initLevel() {
+  const puzzle = PUZZLES[currentLevel];
+  const maxW = Math.min(window.innerWidth - 48, 460);
+  const maxH = Math.min(window.innerHeight * 0.52, 440);
+  const size = Math.min(maxW, maxH);
+  const margin = 40;
+
+  nodes = puzzle.nodes.map(([rx, ry]) => [
+    margin + rx * (size - margin * 2),
+    margin + ry * (size - margin * 2),
+  ]);
+  edges = puzzle.edges.map(([a, b]) => a < b ? [a, b] : [b, a]);
+
+  tracedEdges = [];
+  currentNode = -1;
+  pathHistory = [];
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  btnNext.classList.add('hidden');
+  levelNum.textContent = currentLevel + 1;
+  levelTotal.textContent = PUZZLES.length;
+  scoreDisplay.textContent = score;
+
+  // 每关随机分配节点表情
+  nodeFaces = nodes.map(() => NODE_FACES[Math.floor(Math.random() * NODE_FACES.length)]);
+
+  // 计算度数，自动选起点
+  const degree = Array(nodes.length).fill(0);
+  edges.forEach(([a, b]) => { degree[a]++; degree[b]++; });
+  const oddNodes = degree.reduce((arr, d, i) => { if (d % 2 === 1) arr.push(i); return arr; }, []);
+
+  if (oddNodes.length === 2) {
+    currentNode = oddNodes[0];
+    pathHistory = [currentNode];
+    nodeFaces[currentNode] = '🚩';
+    hintText.textContent = '🚩 已经帮你选好起点啦，继续连完所有线～';
+  } else {
+    hintText.textContent = '点一个小动物出发，连完所有线～';
+  }
+
+  canvas = canvasEl;
+  canvas.width = size;
+  canvas.height = size;
+  ctx = canvas.getContext('2d');
+  nodeRadius = size > 350 ? 28 : 22;
+  draw();
+}
+
+// ========== 绘图（卡通版） ==========
+function draw() {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // 画纸底色
+  ctx.fillStyle = '#fefdf8';
+  ctx.fillRect(0, 0, w, h);
+  // 浅色圆点装饰纹理
+  ctx.fillStyle = '#f0ebe0';
+  for (let x = 20; x < w; x += 24) {
+    for (let y = 20; y < h; y += 24) {
+      ctx.beginPath();
+      ctx.arc(x + (y % 48 === 0 ? 6 : 0), y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 未画的边 — 虚线
+  edges.forEach(([a, b], i) => {
+    if (tracedEdges.includes(i)) return;
+    ctx.strokeStyle = '#e2dcd0';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(nodes[a][0], nodes[a][1]);
+    ctx.lineTo(nodes[b][0], nodes[b][1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // 已画的边 — 彩虹实线
+  tracedEdges.forEach((ei, order) => {
+    const [a, b] = edges[ei];
+    const hue = (order * 45) % 360;
+    ctx.strokeStyle = `hsl(${hue}, 85%, 60%)`;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = `hsl(${hue}, 85%, 60%)`;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(nodes[a][0], nodes[a][1]);
+    ctx.lineTo(nodes[b][0], nodes[b][1]);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+
+  // 节点
+  nodes.forEach(([x, y], i) => {
+    const r = nodeRadius;
+    const isStart = i === pathHistory[0] && pathHistory.length > 0;
+    const isCurrent = i === currentNode;
+    const isVisited = pathHistory.includes(i) && !isCurrent;
+
+    // 当前节点发光
+    if (isCurrent) {
+      const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 1.7);
+      glow.addColorStop(0, 'rgba(59,130,246,0.35)');
+      glow.addColorStop(1, 'rgba(59,130,246,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.7, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 身体圆
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    if (isCurrent) {
+      ctx.fillStyle = '#dbeafe';
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 4;
+    } else if (isVisited) {
+      ctx.fillStyle = '#f0fdf4';
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 3;
+    } else {
+      ctx.fillStyle = '#f8f5f0';
+      ctx.strokeStyle = '#d6cfc0';
+      ctx.lineWidth = 3;
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // 未访问节点画小耳朵
+    if (!isVisited && !isCurrent) {
+      ctx.fillStyle = '#f0e8d8';
+      ctx.strokeStyle = '#d6cfc0';
+      ctx.lineWidth = 2;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(x + side * r * 0.42, y - r * 0.48, r * 0.28, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+    }
+
+    // 表情（emoji）
+    ctx.font = `${r * 0.9}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(nodeFaces[i] || '🐱', x, y);
+
+    // 起点终点标记
+    if (isStart && tracedEdges.length > 0) {
+      ctx.font = `${r * 0.55}px serif`;
+      ctx.fillText('🏁', x, y - r * 1.25);
+    }
+  });
+
+  // 高亮当前节点可达的下一步
+  if (currentNode >= 0 && tracedEdges.length < edges.length) {
+    const reachable = new Set();
+    edges.forEach(([a, b], i) => {
+      if (!tracedEdges.includes(i)) {
+        if (a === currentNode) reachable.add(b);
+        if (b === currentNode) reachable.add(a);
+      }
+    });
+    nodes.forEach(([x, y], i) => {
+      if (reachable.has(i)) {
+        ctx.beginPath();
+        ctx.arc(x, y, nodeRadius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([5, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+  }
+
+  // 提示文字
+  if (currentNode >= 0 && tracedEdges.length < edges.length) {
+    const [cx, cy] = nodes[currentNode];
+    ctx.font = `bold ${nodeRadius * 0.6}px 'PingFang SC','Microsoft YaHei',sans-serif`;
+    ctx.fillStyle = '#3b82f6';
+    ctx.textAlign = 'center';
+    ctx.fillText('👆 点下一个', cx, cy - nodeRadius * 1.85);
+  }
+
+  // 剩余计数
+  const remaining = edges.length - tracedEdges.length;
+  if (remaining > 0 && currentNode >= 0) {
+    ctx.font = `${nodeRadius * 0.55}px 'PingFang SC','Microsoft YaHei',sans-serif`;
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'right';
+    ctx.fillText(`还剩 ${remaining} 条线`, canvas.width - 14, canvas.height - 10);
+  }
+}
+
+// ========== 找最近的节点 ==========
+function findNearestNode(px, py) {
+  let best = -1, bestDist = Infinity;
+  nodes.forEach(([x, y], i) => {
+    const d = Math.hypot(x - px, y - py);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return bestDist < nodeRadius * 2.5 ? best : -1;
+}
+
+// ========== 找两节点间的边索引 ==========
+function findEdge(a, b) {
+  return edges.findIndex(([ea, eb]) =>
+    (ea === a && eb === b) || (ea === b && eb === a)
+  );
+}
+
+// ========== 尝试走一步 ==========
+function tryMove(fromNode, toNode) {
+  if (fromNode === toNode) return false;
+  if (fromNode < 0 || toNode < 0) return false;
+  const ei = findEdge(fromNode, toNode);
+  if (ei < 0 || tracedEdges.includes(ei)) return false;
+
+  tracedEdges.push(ei);
+  pathHistory.push(toNode);
+  currentNode = toNode;
+  playClickSound();
+  draw();
+
+  // 检查是否卡住（无路可走但未完成）
+  const hasMoves = edges.some(([a, b], i) =>
+    !tracedEdges.includes(i) && (a === currentNode || b === currentNode)
+  );
+
+  if (tracedEdges.length === edges.length) {
+    feedback.textContent = '🎉 一笔完成！太厉害了！';
+    feedback.className = 'feedback correct';
+    score += 10;
+    scoreDisplay.textContent = score;
+    hintText.textContent = `「${PUZZLES[currentLevel].name}」完成！`;
+    playWinSound();
+    spawnConfetti();
+    scheduleNext(1500);
+  } else if (!hasMoves) {
+    // 卡住了！自动撤销并提示
+    feedback.textContent = '😅 走不通了，试试撤销换条路～';
+    feedback.className = 'feedback wrong';
+  }
+
+  return true;
+}
+
+// ========== 触摸事件 ==========
+canvasEl.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const rect = canvasEl.getBoundingClientRect();
+  const px = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width);
+  const py = (e.touches[0].clientY - rect.top) * (canvas.height / rect.height);
+  const node = findNearestNode(px, py);
+  if (node < 0) return;
+
+  if (currentNode < 0) {
+    // 起始节点
+    currentNode = node;
+    pathHistory = [node];
+    draw();
+  } else {
+    // 尝试走到相邻节点
+    tryMove(currentNode, node);
+  }
+});
+
+canvasEl.addEventListener('mousedown', (e) => {
+  const rect = canvasEl.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const node = findNearestNode(px, py);
+  if (node < 0) return;
+
+  if (currentNode < 0) {
+    currentNode = node;
+    pathHistory = [node];
+    draw();
+  } else {
+    tryMove(currentNode, node);
+  }
+});
+
+// ========== 按钮 ==========
+document.getElementById('btnUndo').addEventListener('click', () => {
+  if (tracedEdges.length === 0) return;
+  const lastEdge = tracedEdges.pop();
+  pathHistory.pop();
+  currentNode = pathHistory.length > 0 ? pathHistory[pathHistory.length - 1] : -1;
+  if (pathHistory.length === 0) currentNode = -1;
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  draw();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  tracedEdges = [];
+  currentNode = -1;
+  pathHistory = [];
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  draw();
+});
+
+// ========== 下一关 ==========
+let nextTimer = null;
+function scheduleNext(delay) {
+  btnNext.classList.remove('hidden');
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(() => goToNext(), delay);
+}
+function goToNext() {
+  clearTimeout(nextTimer);
+  currentLevel++;
+  if (currentLevel < PUZZLES.length) initLevel();
+  else showComplete();
+}
+btnNext.addEventListener('click', () => goToNext());
+
+// ========== 完成 ==========
+function showComplete() {
+  canvasEl.parentElement.classList.add('hidden');
+  feedback.classList.add('hidden');
+  hintText.classList.add('hidden');
+  btnNext.classList.add('hidden');
+  actionRow.classList.add('hidden');
+  headerArea.classList.add('hidden');
+  completeScreen.classList.remove('hidden');
+  document.getElementById('finalScore').textContent =
+    `连完了 ${PUZZLES.length} 个图形，共得 ${score} 分（满分 ${PUZZLES.length * 10}）`;
+  playWinSound();
+  spawnConfetti();
+}
+
+document.getElementById('btnReplay').addEventListener('click', () => {
+  currentLevel = 0;
+  score = 0;
+  scoreDisplay.textContent = '0';
+  canvasEl.parentElement.classList.remove('hidden');
+  feedback.classList.remove('hidden');
+  hintText.classList.remove('hidden');
+  actionRow.classList.remove('hidden');
+  headerArea.classList.remove('hidden');
+  completeScreen.classList.add('hidden');
+  initLevel();
+});
+
+// ========== 启动 ==========
+initLevel();
+</script>
+
+</body>
+</html>
