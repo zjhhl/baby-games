@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>华容道 🐼</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #fef9c3 0%, #fdf2f8 40%, #f0f9ff 80%);
+    height: 100dvh; display: flex; justify-content: center; align-items: center;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; overflow: hidden;
+  }
+  .container {
+    width: 100%; max-width: 480px; height: 100dvh; padding: 10px 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+
+  .header {
+    text-align: center; flex-shrink: 0;
+  }
+  .header .title {
+    font-size: 1.35rem; font-weight: 800;
+    background: linear-gradient(135deg, #ef4444, #f59e0b, #22c55e);
+    background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .info { font-size: 0.9rem; color: #64748b; }
+  .header .info span { font-weight: 700; color: #ef4444; }
+
+  /* ---- 棋盘 ---- */
+  .board-wrapper {
+    background: #f1f0eb; border-radius: 18px; padding: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06); flex-shrink: 0;
+    position: relative;
+  }
+  .board {
+    position: relative; background: #d4a574; border-radius: 8px;
+    border: 4px solid #8b5e3c;
+    touch-action: none;
+  }
+
+  /* ---- 棋子 ---- */
+  .piece {
+    position: absolute; border-radius: 10px; cursor: pointer;
+    transition: left 0.12s ease, top 0.12s ease;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .piece.hero {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; z-index: 2;
+    font-size: 2.5rem;
+  }
+  .piece.horiz {
+    background: linear-gradient(135deg, #f59e0b, #d97706); color: white;
+  }
+  .piece.vert {
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: white;
+  }
+  .piece.small {
+    background: linear-gradient(135deg, #ec4899, #db2777); color: white;
+    font-size: 1.4rem;
+  }
+
+  /* ---- 出口标记 ---- */
+  .exit-marker {
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+    width: 40%; height: 10px; background: #ef4444; border-radius: 0 0 6px 6px;
+    z-index: 1; opacity: 0.8;
+  }
+
+  /* ---- 反馈 ---- */
+  .hint-text {
+    font-size: 0.9rem; color: #64748b; text-align: center; flex-shrink: 0; font-weight: 600;
+  }
+  .feedback {
+    font-size: 1.2rem; font-weight: 700; text-align: center; min-height: 28px; flex-shrink: 0;
+  }
+  .feedback.win { color: #16a34a; }
+
+  .btn-row { display: flex; gap: 10px; flex-shrink: 0; }
+  .btn {
+    padding: 10px 22px; border-radius: 50px; border: none;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.94); }
+  .btn-reset { background: #e2e8f0; color: #475569; }
+  .btn-next {
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: white;
+    box-shadow: 0 3px 10px rgba(34,197,94,0.3);
+  }
+
+  .complete-screen {
+    text-align: center; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; flex: 1;
+  }
+  .complete-screen .trophy { font-size: 4rem; animation: bounce 1s ease infinite; }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); }
+  }
+  .complete-screen .msg { font-size: 1.35rem; font-weight: 700; color: #1e293b; }
+  .btn-replay {
+    padding: 12px 34px; border-radius: 50px; border: none;
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: white;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer;
+    box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+  }
+
+  .hidden { display: none !important; }
+  .confetti-container {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+  .confetti-piece {
+    position: absolute; border-radius: 3px;
+    animation: confetti-fall 1.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-60px) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg) scale(0.3); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header" id="headerArea">
+    <div class="title">🐼 华容道</div>
+    <div class="info">第 <span id="lvNum">1</span>/<span id="lvTotal">8</span> 关 &nbsp; 🎯 <span id="moveCount">0</span> 步</div>
+  </div>
+
+  <div class="board-wrapper" id="boardWrapper">
+    <div class="board" id="boardEl">
+      <div class="exit-marker"></div>
+    </div>
+  </div>
+
+  <div class="hint-text" id="hint">把 🐼 移到下方红色出口～</div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="btn-row" id="btnRow">
+    <button class="btn btn-reset" id="btnReset">🔄 重来</button>
+    <button class="btn btn-next hidden" id="btnNext">👉 下一关</button>
+  </div>
+
+  <div class="complete-screen hidden" id="completeScreen">
+    <div class="trophy">🏆</div>
+    <div class="msg">全部通关！</div>
+    <div class="final-score" id="finalScore"></div>
+    <button class="btn-replay" id="btnReplay">🔄 再玩一次</button>
+  </div>
+</div>
+
+<div class="confetti-container" id="confettiContainer"></div>
+
+<script>
+// ============================================================
+//  关卡数据  COL=4, ROW=5  (标准华容道尺寸)
+//  pieces: [ [col, row, w, h, type] ]
+//  type: 'hero'(2x2), 'horiz'(2x1), 'vert'(1x2), 'small'(1x1)
+//  hero 出口在 row 3-4, col 1 位置（底部中间格）
+//============================================================
+const LEVELS = [
+  { // 1: 横刀立马（简化）
+    name: '初入华容',
+    pieces: [
+      [1,0, 2,2, 'hero'],   // 🐼 曹操
+      [0,0, 1,2, 'vert'],   // 赵云
+      [3,0, 1,2, 'vert'],   // 关羽（竖）
+      [0,2, 1,1, 'small'],  // 兵1
+      [3,2, 1,1, 'small'],  // 兵2
+      [0,3, 1,1, 'small'],  // 兵3
+      [3,3, 1,1, 'small'],  // 兵4
+      [1,2, 2,1, 'horiz'],  // 张飞
+    ],
+  },
+  { // 2: 指挥若定
+    name: '小试牛刀',
+    pieces: [
+      [1,0, 2,2, 'hero'],
+      [0,0, 1,2, 'vert'],
+      [3,0, 1,2, 'vert'],
+      [0,2, 1,1, 'small'],
+      [1,2, 2,1, 'horiz'],
+      [3,2, 1,1, 'small'],
+      [0,3, 1,1, 'small'],
+      [3,3, 1,1, 'small'],
+    ],
+  },
+  { // 3
+    name: '兵分三路',
+    pieces: [
+      [1,0, 2,2, 'hero'],
+      [0,0, 2,1, 'horiz'],
+      [0,1, 1,1, 'small'],
+      [3,1, 1,1, 'small'],
+      [0,2, 2,1, 'horiz'],
+      [0,3, 1,1, 'small'],
+      [3,2, 1,2, 'vert'],
+    ],
+  },
+  { // 4
+    name: '左右为难',
+    pieces: [
+      [1,1, 2,2, 'hero'],
+      [0,0, 2,1, 'horiz'],
+      [3,0, 1,2, 'vert'],
+      [0,1, 1,1, 'small'],
+      [0,3, 1,2, 'vert'],
+      [1,3, 2,1, 'horiz'],
+    ],
+  },
+  { // 5
+    name: '层层设防',
+    pieces: [
+      [1,0, 2,2, 'hero'],
+      [0,0, 1,2, 'vert'],
+      [3,0, 1,2, 'vert'],
+      [1,2, 2,1, 'horiz'],
+      [0,2, 1,1, 'small'],
+      [3,2, 1,1, 'small'],
+      [0,3, 2,1, 'horiz'],
+    ],
+  },
+  { // 6
+    name: '四面楚歌',
+    pieces: [
+      [1,0, 2,2, 'hero'],
+      [0,0, 1,1, 'small'],
+      [3,0, 1,1, 'small'],
+      [0,1, 1,2, 'vert'],
+      [3,1, 1,2, 'vert'],
+      [0,3, 2,1, 'horiz'],
+      [1,2, 2,1, 'horiz'],
+    ],
+  },
+  { // 7
+    name: '兵临城下',
+    pieces: [
+      [1,1, 2,2, 'hero'],
+      [0,0, 1,2, 'vert'],
+      [3,0, 1,2, 'vert'],
+      [0,2, 1,1, 'small'],
+      [3,2, 1,1, 'small'],
+      [0,3, 1,1, 'small'],
+      [3,3, 1,1, 'small'],
+      [1,0, 2,1, 'horiz'],
+    ],
+  },
+  { // 8
+    name: '终极挑战',
+    pieces: [
+      [1,0, 2,2, 'hero'],
+      [0,0, 2,1, 'horiz'],
+      [0,1, 1,1, 'small'],
+      [3,1, 1,1, 'small'],
+      [0,2, 1,2, 'vert'],
+      [2,2, 2,1, 'horiz'],
+      [3,2, 1,1, 'small'],
+      [0,4, 2,1, 'horiz'],
+      [3,3, 1,1, 'small'],
+    ],
+  },
+];
+
+// ============================================================
+//  游戏常量
+// ============================================================
+const COLS = 4, ROWS = 5;
+const ICONS = { hero: '🐼', horiz: '🐱', vert: '🐶', small: '🐰' };
+
+// ============================================================
+//  状态
+// ============================================================
+let currentLevel = 0;
+let moves = 0;
+let pieces = [];  // [ {col, row, w, h, type, el} ]
+let cellSize = 0;
+let dragPiece = null;
+let dragStartX = 0, dragStartY = 0;
+let dragStartCol = 0, dragStartRow = 0;
+let boardEl;
+
+// DOM
+const boardWrapper = document.getElementById('boardWrapper');
+const moveCountEl = document.getElementById('moveCount');
+const feedback = document.getElementById('feedback');
+const hint = document.getElementById('hint');
+const btnNext = document.getElementById('btnNext');
+const btnReset = document.getElementById('btnReset');
+const lvNum = document.getElementById('lvNum');
+const lvTotal = document.getElementById('lvTotal');
+const headerArea = document.getElementById('headerArea');
+const btnRow = document.getElementById('btnRow');
+const completeScreen = document.getElementById('completeScreen');
+const confettiContainer = document.getElementById('confettiContainer');
+
+// ============================================================
+//  音频
+// ============================================================
+function playClick() {
+  try {
+    const a = new (window.AudioContext || window.webkitAudioContext)();
+    const o = a.createOscillator(); const g = a.createGain();
+    o.type = 'sine'; o.frequency.value = 500;
+    g.gain.setValueAtTime(0.12, a.currentTime);
+    g.gain.linearRampToValueAtTime(0, a.currentTime + 0.08);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime + 0.1);
+  } catch(e) {}
+}
+function playWin() {
+  try {
+    const a = new (window.AudioContext || window.webkitAudioContext)();
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = a.createOscillator(); const g = a.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = a.currentTime + i * 0.1;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.25, t + 0.03);
+      g.gain.linearRampToValueAtTime(0, t + 0.35);
+      o.connect(g); g.connect(a.destination);
+      o.start(t); o.stop(t + 0.4);
+    });
+  } catch(e) {}
+}
+function spawnConfetti() {
+  const colors = ['#ef4444','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 50; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.top = -(Math.random() * 40) + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    p.style.animationDuration = (1 + Math.random() * 2) + 's';
+    p.style.width = (7 + Math.random() * 10) + 'px';
+    p.style.height = (7 + Math.random() * 10) + 'px';
+    frag.appendChild(p);
+  }
+  confettiContainer.appendChild(frag);
+  setTimeout(() => { confettiContainer.innerHTML = ''; }, 2500);
+}
+
+// ============================================================
+//  构建棋盘
+// ============================================================
+function buildBoard() {
+  boardEl = document.getElementById('boardEl');
+  const maxW = Math.min(window.innerWidth - 48, 420);
+  const maxH = window.innerHeight * 0.52;
+  cellSize = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+  const w = cellSize * COLS, h = cellSize * ROWS;
+
+  boardEl.style.width = w + 'px';
+  boardEl.style.height = h + 'px';
+
+  // 清除旧棋子
+  boardEl.querySelectorAll('.piece').forEach(el => el.remove());
+
+  const lv = LEVELS[currentLevel];
+  pieces = lv.pieces.map(([col, row, pw, ph, type]) => {
+    const div = document.createElement('div');
+    div.className = 'piece ' + type;
+    div.style.width = (pw * cellSize - 6) + 'px';
+    div.style.height = (ph * cellSize - 6) + 'px';
+    div.style.left = (col * cellSize + 3) + 'px';
+    div.style.top = (row * cellSize + 3) + 'px';
+    div.textContent = ICONS[type];
+    div.addEventListener('touchstart', onTouchStart, { passive: false });
+    div.addEventListener('touchmove', onTouchMove, { passive: false });
+    div.addEventListener('touchend', onTouchEnd);
+    div.addEventListener('mousedown', onMouseDown);
+    boardEl.appendChild(div);
+    return { col, row, w: pw, h: ph, type, el: div };
+  });
+}
+
+// ============================================================
+//  碰撞检测：棋子能否放在 (col,row)
+// ============================================================
+function canPlace(piece, col, row, skipIdx) {
+  if (col < 0 || row < 0 || col + piece.w > COLS || row + piece.h > ROWS) return false;
+  for (let i = 0; i < pieces.length; i++) {
+    if (i === skipIdx) continue;
+    const p = pieces[i];
+    if (col < p.col + p.w && col + piece.w > p.col && row < p.row + p.h && row + piece.h > p.row) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// ============================================================
+//  移动棋子
+// ============================================================
+function movePiece(p, idx, dc, dr) {
+  const newCol = p.col + dc;
+  const newRow = p.row + dr;
+  if (!canPlace(p, newCol, newRow, idx)) return false;
+
+  p.col = newCol;
+  p.row = newRow;
+  p.el.style.left = (newCol * cellSize + 3) + 'px';
+  p.el.style.top = (newRow * cellSize + 3) + 'px';
+  moves++;
+  moveCountEl.textContent = moves;
+  playClick();
+
+  // 检查胜利：hero 到达出口 (col 0-2, row 3-4 可以滑出)
+  if (p.type === 'hero' && p.col === 1 && p.row === 3) {
+    feedback.textContent = '🎉 成功救出熊猫！';
+    feedback.className = 'feedback win';
+    hint.textContent = '🐼 自由啦！';
+    playWin();
+    spawnConfetti();
+    if (currentLevel < LEVELS.length - 1) {
+      btnNext.classList.remove('hidden');
+    } else {
+      showComplete();
+    }
+  }
+  return true;
+}
+
+// ============================================================
+//  滑动手势
+// ============================================================
+let touchStartTime = 0;
+
+function onTouchStart(e) {
+  e.preventDefault();
+  dragPiece = e.currentTarget;
+  const idx = pieces.findIndex(p => p.el === dragPiece);
+  if (idx < 0) return;
+  dragStartX = e.touches[0].clientX;
+  dragStartY = e.touches[0].clientY;
+  dragStartCol = pieces[idx].col;
+  dragStartRow = pieces[idx].row;
+  touchStartTime = Date.now();
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (!dragPiece) return;
+}
+
+function onTouchEnd(e) {
+  if (!dragPiece) return;
+  const idx = pieces.findIndex(p => p.el === dragPiece);
+  if (idx < 0) { dragPiece = null; return; }
+
+  const dx = (e.changedTouches[0]?.clientX || dragStartX) - dragStartX;
+  const dy = (e.changedTouches[0]?.clientY || dragStartY) - dragStartY;
+  const threshold = cellSize * 0.3;
+  const p = pieces[idx];
+
+  // 判断滑动方向，一次滑到不能走为止
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > threshold) {
+    const dir = dx > 0 ? 1 : -1;
+    // 连续滑
+    while (Math.abs((p.col + dir) - dragStartCol) <= (Math.abs(dx) / cellSize) + 1) {
+      if (!movePiece(p, idx, dir, 0)) break;
+    }
+  } else if (Math.abs(dy) > threshold) {
+    const dir = dy > 0 ? 1 : -1;
+    while (Math.abs((p.row + dir) - dragStartRow) <= (Math.abs(dy) / cellSize) + 1) {
+      if (!movePiece(p, idx, 0, dir)) break;
+    }
+  }
+
+  dragPiece = null;
+}
+
+function onMouseDown(e) {
+  dragPiece = e.currentTarget;
+  const idx = pieces.findIndex(p => p.el === dragPiece);
+  if (idx < 0) return;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragStartCol = pieces[idx].col;
+  dragStartRow = pieces[idx].row;
+
+  const onUp = (ev) => {
+    document.removeEventListener('mouseup', onUp);
+    if (!dragPiece) return;
+    const idx2 = pieces.findIndex(p => p.el === dragPiece);
+    if (idx2 < 0) { dragPiece = null; return; }
+    const dx2 = ev.clientX - dragStartX;
+    const dy2 = ev.clientY - dragStartY;
+    const threshold2 = cellSize * 0.3;
+    const p2 = pieces[idx2];
+    if (Math.abs(dx2) > Math.abs(dy2) && Math.abs(dx2) > threshold2) {
+      const dir2 = dx2 > 0 ? 1 : -1;
+      while (Math.abs((p2.col + dir2) - dragStartCol) <= (Math.abs(dx2) / cellSize) + 1) {
+        if (!movePiece(p2, idx2, dir2, 0)) break;
+      }
+    } else if (Math.abs(dy2) > threshold2) {
+      const dir2 = dy2 > 0 ? 1 : -1;
+      while (Math.abs((p2.row + dir2) - dragStartRow) <= (Math.abs(dy2) / cellSize) + 1) {
+        if (!movePiece(p2, idx2, 0, dir2)) break;
+      }
+    }
+    dragPiece = null;
+  };
+  document.addEventListener('mouseup', onUp);
+}
+
+// ============================================================
+//  按钮
+// ============================================================
+function initLevel() {
+  const lv = LEVELS[currentLevel];
+  moves = 0;
+  moveCountEl.textContent = '0';
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  hint.textContent = '把 🐼 移到下方红色出口～';
+  btnNext.classList.add('hidden');
+  lvNum.textContent = currentLevel + 1;
+  lvTotal.textContent = LEVELS.length;
+  buildBoard();
+
+  // 检查是否已经完成（hero 起始就在出口？不会）
+}
+
+btnReset.addEventListener('click', () => {
+  initLevel();
+});
+
+btnNext.addEventListener('click', () => {
+  currentLevel++;
+  if (currentLevel < LEVELS.length) {
+    initLevel();
+  } else {
+    showComplete();
+  }
+});
+
+function showComplete() {
+  headerArea.classList.add('hidden');
+  document.getElementById('boardWrapper').classList.add('hidden');
+  feedback.classList.add('hidden');
+  hint.classList.add('hidden');
+  btnRow.classList.add('hidden');
+  completeScreen.classList.remove('hidden');
+  document.getElementById('finalScore').textContent = '通关全部 ' + LEVELS.length + ' 关！';
+  playWin();
+  spawnConfetti();
+}
+
+document.getElementById('btnReplay').addEventListener('click', () => {
+  currentLevel = 0;
+  headerArea.classList.remove('hidden');
+  document.getElementById('boardWrapper').classList.remove('hidden');
+  feedback.classList.remove('hidden');
+  hint.classList.remove('hidden');
+  btnRow.classList.remove('hidden');
+  completeScreen.classList.add('hidden');
+  initLevel();
+});
+
+// ============================================================
+//  启动
+// ============================================================
+lvTotal.textContent = LEVELS.length;
+initLevel();
+</script>
+</body>
+</html>
